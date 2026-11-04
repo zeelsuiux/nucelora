@@ -15,7 +15,6 @@ class Database {
             $user = getenv('DB_USER') ?: 'root';
             $pass = getenv('DB_PASS') ?: '';
 
-            $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
             $options = [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -23,11 +22,22 @@ class Database {
             ];
 
             try {
+                if (file_exists('/var/run/mysqld/mysqld.sock') && ($host === '127.0.0.1' || $host === 'localhost')) {
+                    $dsn = "mysql:unix_socket=/var/run/mysqld/mysqld.sock;dbname={$dbname};charset=utf8mb4";
+                } else {
+                    $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
+                }
                 self::$instance = new PDO($dsn, $user, $pass, $options);
             } catch (PDOException $e) {
-                error_log("Database connection error: " . $e->getMessage());
-                http_response_code(500);
-                die("<!DOCTYPE html><html><head><title>Service Temporarily Unavailable</title></head><body style='font-family:sans-serif; text-align:center; padding:60px;'><h2>Service Unavailable</h2><p>Our database service is temporarily undergoing maintenance. Please try again in a few moments.</p></body></html>");
+                // If socket failed, try TCP host
+                try {
+                    $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
+                    self::$instance = new PDO($dsn, $user, $pass, $options);
+                } catch (PDOException $e2) {
+                    error_log("Database connection error: " . $e2->getMessage());
+                    http_response_code(500);
+                    die("<!DOCTYPE html><html><head><title>Service Temporarily Unavailable</title></head><body style='font-family:sans-serif; text-align:center; padding:60px;'><h2>Service Unavailable</h2><p>Our database service is temporarily undergoing maintenance. Please try again in a few moments.</p></body></html>");
+                }
             }
         }
         return self::$instance;
