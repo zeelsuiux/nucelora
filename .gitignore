@@ -1,0 +1,6 @@
+cloudflared.exe
+cloudflared.log
+lymko_deploy.zip
+*.log
+.DS_Store
+Thumbs.db
